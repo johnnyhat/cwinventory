@@ -6,19 +6,20 @@
 <style>
   body { margin:0; font-family:-apple-system,"Segoe UI",Arial,sans-serif; background:#fff; padding:1.5rem; }
   .muted { color:#898781; }
-  .legend { display:flex; gap:16px; font-size:12px; color:#52514e; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .legend { display:flex; gap:14px; font-size:12px; color:#52514e; margin-bottom:1.5rem; flex-wrap:wrap; }
   .dot { display:inline-block; border-radius:50%; }
 </style>
 </head>
 <body>
-<div style="max-width:680px;margin:0 auto;">
+<div style="max-width:700px;margin:0 auto;">
 <h2 style="font-size:16px;font-weight:500;margin:0 0 0.5rem;">ColoWrap inventory: order-by timeline</h2>
 <div id="status" class="muted" style="font-size:12px;margin-bottom:1rem;">Loading from Zoho Analytics…</div>
 <div class="legend">
   <span><span class="dot" style="width:10px;height:10px;background:#A32D2D"></span> Order-by (act now)</span>
   <span><span class="dot" style="width:10px;height:10px;background:#0F6E56"></span> Order-by (on track)</span>
   <span><span class="dot" style="width:8px;height:8px;background:#888780"></span> Next stockout</span>
-  <span><span style="width:2px;height:10px;background:#378ADD;display:inline-block"></span> Sep 1 delivery</span>
+  <span><span style="width:2px;height:10px;background:#378ADD;display:inline-block"></span> Sep 1 delivery (PO-102126/7)</span>
+  <span><span style="width:2px;height:10px;background:#8B5CF6;display:inline-block"></span> Dec 1 delivery (PO-102128)</span>
 </div>
 <div id="rows"></div>
 <div id="axis" style="display:flex;justify-content:space-between;font-size:11px;color:#898781;margin-top:4px;padding-left:70px"></div>
@@ -28,33 +29,30 @@
 /* ============================================================
    FILL THESE IN — from your Zoho Analytics workspace
    ============================================================ */
-const ZOHO_ORG_ID       = "YOUR_ORG_ID";          // Zoho Analytics org ID
-const ZOHO_WORKSPACE_ID = "YOUR_WORKSPACE_ID";    // found in workspace URL or via Get Views API
-const ZOHO_VIEW_ID      = "YOUR_VIEW_ID";         // the query table / view with these columns:
-                                                   //   Size, Supplier, OrderByDate, StockoutDate, IsDeliveryCovered
-const ZOHO_ACCESS_TOKEN = "YOUR_OAUTH_TOKEN";     // Zoho-oauthtoken value — see security note below
-/* ============================================================
-   SECURITY NOTE: this token is visible in page source to anyone
-   who can view this file. Only acceptable behind an internal,
-   login-gated dashboard. For anything public, proxy this call
-   through a small server endpoint instead of calling Zoho directly.
-   ============================================================ */
+const ZOHO_ORG_ID       = "YOUR_ORG_ID";
+const ZOHO_WORKSPACE_ID = "YOUR_WORKSPACE_ID";
+const ZOHO_VIEW_ID      = "YOUR_VIEW_ID";       // view should now include OrderByDate + StockoutDate
+                                                  // computed with BOTH deliveries factored in
+const ZOHO_ACCESS_TOKEN = "YOUR_OAUTH_TOKEN";
+/* SECURITY NOTE: token visible in page source. Internal/login-gated use only. */
 
 const API_URL = `https://analyticsapi.zoho.com/restapi/v2/workspaces/${ZOHO_WORKSPACE_ID}/views/${ZOHO_VIEW_ID}/data?CONFIG=${encodeURIComponent(JSON.stringify({responseFormat:"json"}))}`;
 
-// Fallback demo data (used if the live fetch fails, so the widget still renders)
+// Fallback demo data -- refreshed Aug 6, 2026, includes both Sep 1 and Dec 1 deliveries
 const FALLBACK_ROWS = [
-  {size:'XL', orderByDays:77, stockoutDays:167},
-  {size:'XK', orderByDays:92, stockoutDays:182},
-  {size:'L', orderByDays:90, stockoutDays:180},
-  {size:'M', orderByDays:101, stockoutDays:191},
-  {size:'XXL', orderByDays:124, stockoutDays:214},
-  {size:'S', orderByDays:163, stockoutDays:253}
+  {size:'XK', orderByDays:155, stockoutDays:245},
+  {size:'XL', orderByDays:161, stockoutDays:251},
+  {size:'L', orderByDays:173, stockoutDays:263},
+  {size:'M', orderByDays:190, stockoutDays:280},
+  {size:'XXL', orderByDays:203, stockoutDays:293},
+  {size:'S', orderByDays:242, stockoutDays:332}
 ];
 
 const TODAY = new Date();
-const DELIVERY_DATE = new Date("2026-09-01");
-const deliveryDay = Math.round((DELIVERY_DATE - TODAY) / 86400000);
+const DELIVERY_1 = new Date("2026-09-01");
+const DELIVERY_2 = new Date("2026-12-01");
+const d1Day = Math.round((DELIVERY_1 - TODAY) / 86400000);
+const d2Day = Math.round((DELIVERY_2 - TODAY) / 86400000);
 
 function daysFromToday(dateStr) {
   return Math.round((new Date(dateStr) - TODAY) / 86400000);
@@ -63,7 +61,7 @@ function daysFromToday(dateStr) {
 function render(rows, liveNote) {
   document.getElementById('status').textContent = liveNote;
   rows.sort((a,b) => a.orderByDays - b.orderByDays);
-  const maxDays = Math.max(...rows.map(r => r.stockoutDays)) * 1.05;
+  const maxDays = Math.max(...rows.map(r => r.stockoutDays), d2Day) * 1.05;
   const pct = d => (d / maxDays * 100).toFixed(1) + '%';
   const container = document.getElementById('rows');
   container.innerHTML = '';
@@ -74,7 +72,8 @@ function render(rows, liveNote) {
     row.innerHTML = `
       <div style="width:54px;font-size:13px;font-weight:500;flex-shrink:0">${r.size}</div>
       <div style="flex:1;position:relative;height:2px;background:#e5e4e0">
-        <div style="position:absolute;left:${pct(deliveryDay)};top:-8px;width:1px;height:18px;background:#378ADD"></div>
+        <div style="position:absolute;left:${pct(d1Day)};top:-8px;width:1px;height:18px;background:#378ADD"></div>
+        <div style="position:absolute;left:${pct(d2Day)};top:-8px;width:1px;height:18px;background:#8B5CF6"></div>
         <div style="position:absolute;left:${pct(r.stockoutDays)};top:-3px;width:8px;height:8px;border-radius:50%;background:#888780;transform:translateX(-4px)"></div>
         <div style="position:absolute;left:${pct(r.orderByDays)};top:-5px;width:12px;height:12px;border-radius:50%;background:${status};border:2px solid #fff;transform:translateX(-6px)"></div>
       </div>`;
@@ -101,7 +100,6 @@ async function loadFromZohoAnalytics() {
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const json = await resp.json();
-    // Adjust this mapping to match your actual view's column names
     const records = json.data || json.rows || [];
     const rows = records.map(rec => ({
       size: rec.Size,
@@ -112,7 +110,7 @@ async function loadFromZohoAnalytics() {
     render(rows, `Live from Zoho Analytics — refreshed ${new Date().toLocaleString()}`);
   } catch (err) {
     console.warn("Zoho Analytics fetch failed, showing fallback data:", err);
-    render(FALLBACK_ROWS, "⚠ Could not reach Zoho Analytics — showing last-known demo data");
+    render(FALLBACK_ROWS, "⚠ Could not reach Zoho Analytics — showing last-known snapshot (Aug 6, 2026)");
   }
 }
 
