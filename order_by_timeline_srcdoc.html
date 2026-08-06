@@ -1,45 +1,36 @@
-<!DOCTYPE html>
-<html lang="en">
+<iframe srcdoc="<!DOCTYPE html>
+<html lang=&quot;en&quot;>
 <head>
-<meta charset="UTF-8">
-<title>ColoWrap Order-By Timeline (Zoho Analytics-driven)</title>
+<meta charset=&quot;UTF-8&quot;>
+<title>ColoWrap Order-By Timeline</title>
 <style>
-  body { margin:0; font-family:-apple-system,"Segoe UI",Arial,sans-serif; background:#fff; padding:1.5rem; }
+  body { margin:0; font-family:-apple-system,&quot;Segoe UI&quot;,Arial,sans-serif; background:#fff; padding:1.5rem; }
   .muted { color:#898781; }
   .legend { display:flex; gap:14px; font-size:12px; color:#52514e; margin-bottom:1.5rem; flex-wrap:wrap; }
   .dot { display:inline-block; border-radius:50%; }
 </style>
 </head>
 <body>
-<div style="max-width:700px;margin:0 auto;">
-<h2 style="font-size:16px;font-weight:500;margin:0 0 0.5rem;">ColoWrap inventory: order-by timeline</h2>
-<div id="status" class="muted" style="font-size:12px;margin-bottom:1rem;">Loading from Zoho Analytics…</div>
-<div class="legend">
-  <span><span class="dot" style="width:10px;height:10px;background:#A32D2D"></span> Order-by (act now)</span>
-  <span><span class="dot" style="width:10px;height:10px;background:#0F6E56"></span> Order-by (on track)</span>
-  <span><span class="dot" style="width:8px;height:8px;background:#888780"></span> Next stockout</span>
-  <span><span style="width:2px;height:10px;background:#378ADD;display:inline-block"></span> Sep 1 delivery (PO-102126/7)</span>
-  <span><span style="width:2px;height:10px;background:#8B5CF6;display:inline-block"></span> Dec 1 delivery (PO-102128)</span>
+<div style=&quot;max-width:700px;margin:0 auto;&quot;>
+<h2 style=&quot;font-size:16px;font-weight:500;margin:0 0 0.5rem;&quot;>ColoWrap inventory: order-by timeline</h2>
+<div id=&quot;status&quot; class=&quot;muted&quot; style=&quot;font-size:12px;margin-bottom:1rem;&quot;>Snapshot from Aug 6, 2026</div>
+<div class=&quot;legend&quot;>
+  <span><span class=&quot;dot&quot; style=&quot;width:10px;height:10px;background:#A32D2D&quot;></span> Order-by (act now)</span>
+  <span><span class=&quot;dot&quot; style=&quot;width:10px;height:10px;background:#0F6E56&quot;></span> Order-by (on track)</span>
+  <span><span class=&quot;dot&quot; style=&quot;width:8px;height:8px;background:#888780&quot;></span> Next stockout</span>
+  <span><span style=&quot;width:2px;height:10px;background:#378ADD;display:inline-block&quot;></span> Sep 1 delivery</span>
+  <span><span style=&quot;width:2px;height:10px;background:#8B5CF6;display:inline-block&quot;></span> Dec 1 delivery</span>
 </div>
-<div id="rows"></div>
-<div id="axis" style="display:flex;justify-content:space-between;font-size:11px;color:#898781;margin-top:4px;padding-left:70px"></div>
+<div id=&quot;rows&quot;></div>
+<div id=&quot;axis&quot; style=&quot;display:flex;justify-content:space-between;font-size:11px;color:#898781;margin-top:4px;padding-left:70px&quot;></div>
 </div>
-
 <script>
-/* ============================================================
-   FILL THESE IN — from your Zoho Analytics workspace
-   ============================================================ */
-const ZOHO_ORG_ID       = "YOUR_ORG_ID";
-const ZOHO_WORKSPACE_ID = "YOUR_WORKSPACE_ID";
-const ZOHO_VIEW_ID      = "YOUR_VIEW_ID";       // view should now include OrderByDate + StockoutDate
-                                                  // computed with BOTH deliveries factored in
-const ZOHO_ACCESS_TOKEN = "YOUR_OAUTH_TOKEN";
-/* SECURITY NOTE: token visible in page source. Internal/login-gated use only. */
-
-const API_URL = `https://analyticsapi.zoho.com/restapi/v2/workspaces/${ZOHO_WORKSPACE_ID}/views/${ZOHO_VIEW_ID}/data?CONFIG=${encodeURIComponent(JSON.stringify({responseFormat:"json"}))}`;
-
-// Fallback demo data -- refreshed Aug 6, 2026, includes both Sep 1 and Dec 1 deliveries
-const FALLBACK_ROWS = [
+const TODAY = new Date();
+const d1 = new Date(&quot;2026-09-01&quot;);
+const d2 = new Date(&quot;2026-12-01&quot;);
+const d1Day = Math.round((d1 - TODAY) / 86400000);
+const d2Day = Math.round((d2 - TODAY) / 86400000);
+const rows = [
   {size:'XK', orderByDays:155, stockoutDays:245},
   {size:'XL', orderByDays:161, stockoutDays:251},
   {size:'L', orderByDays:173, stockoutDays:263},
@@ -47,74 +38,33 @@ const FALLBACK_ROWS = [
   {size:'XXL', orderByDays:203, stockoutDays:293},
   {size:'S', orderByDays:242, stockoutDays:332}
 ];
-
-const TODAY = new Date();
-const DELIVERY_1 = new Date("2026-09-01");
-const DELIVERY_2 = new Date("2026-12-01");
-const d1Day = Math.round((DELIVERY_1 - TODAY) / 86400000);
-const d2Day = Math.round((DELIVERY_2 - TODAY) / 86400000);
-
-function daysFromToday(dateStr) {
-  return Math.round((new Date(dateStr) - TODAY) / 86400000);
-}
-
-function render(rows, liveNote) {
-  document.getElementById('status').textContent = liveNote;
-  rows.sort((a,b) => a.orderByDays - b.orderByDays);
-  const maxDays = Math.max(...rows.map(r => r.stockoutDays), d2Day) * 1.05;
-  const pct = d => (d / maxDays * 100).toFixed(1) + '%';
-  const container = document.getElementById('rows');
-  container.innerHTML = '';
-  rows.forEach(r => {
-    const status = r.orderByDays < 0 ? '#A32D2D' : '#0F6E56';
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;height:36px;position:relative';
-    row.innerHTML = `
-      <div style="width:54px;font-size:13px;font-weight:500;flex-shrink:0">${r.size}</div>
-      <div style="flex:1;position:relative;height:2px;background:#e5e4e0">
-        <div style="position:absolute;left:${pct(d1Day)};top:-8px;width:1px;height:18px;background:#378ADD"></div>
-        <div style="position:absolute;left:${pct(d2Day)};top:-8px;width:1px;height:18px;background:#8B5CF6"></div>
-        <div style="position:absolute;left:${pct(r.stockoutDays)};top:-3px;width:8px;height:8px;border-radius:50%;background:#888780;transform:translateX(-4px)"></div>
-        <div style="position:absolute;left:${pct(r.orderByDays)};top:-5px;width:12px;height:12px;border-radius:50%;background:${status};border:2px solid #fff;transform:translateX(-6px)"></div>
-      </div>`;
-    container.appendChild(row);
-  });
-  const axis = document.getElementById('axis');
-  axis.innerHTML = '';
-  const labels = [0, Math.round(maxDays/3), Math.round(maxDays*2/3), Math.round(maxDays)];
-  labels.forEach(d => {
-    const dt = new Date(TODAY.getTime() + d*86400000);
-    const span = document.createElement('span');
-    span.textContent = dt.toLocaleDateString('en-US', {month:'short', year:'numeric'});
-    axis.appendChild(span);
-  });
-}
-
-async function loadFromZohoAnalytics() {
-  try {
-    const resp = await fetch(API_URL, {
-      headers: {
-        "ZANALYTICS-ORGID": ZOHO_ORG_ID,
-        "Authorization": `Zoho-oauthtoken ${ZOHO_ACCESS_TOKEN}`
-      }
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const json = await resp.json();
-    const records = json.data || json.rows || [];
-    const rows = records.map(rec => ({
-      size: rec.Size,
-      orderByDays: daysFromToday(rec.OrderByDate),
-      stockoutDays: daysFromToday(rec.StockoutDate)
-    }));
-    if (!rows.length) throw new Error("No rows returned");
-    render(rows, `Live from Zoho Analytics — refreshed ${new Date().toLocaleString()}`);
-  } catch (err) {
-    console.warn("Zoho Analytics fetch failed, showing fallback data:", err);
-    render(FALLBACK_ROWS, "⚠ Could not reach Zoho Analytics — showing last-known snapshot (Aug 6, 2026)");
-  }
-}
-
-loadFromZohoAnalytics();
+rows.sort((a,b) => a.orderByDays - b.orderByDays);
+const maxDays = Math.max(...rows.map(r => r.stockoutDays), d2Day) * 1.05;
+const pct = d => (d / maxDays * 100).toFixed(1) + '%';
+const container = document.getElementById('rows');
+rows.forEach(r => {
+  const status = r.orderByDays < 0 ? '#A32D2D' : '#0F6E56';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;height:36px;position:relative';
+  row.innerHTML = `
+    <div style=&quot;width:54px;font-size:13px;font-weight:500;flex-shrink:0&quot;>${r.size}</div>
+    <div style=&quot;flex:1;position:relative;height:2px;background:#e5e4e0&quot;>
+      <div style=&quot;position:absolute;left:${pct(d1Day)};top:-8px;width:1px;height:18px;background:#378ADD&quot;></div>
+      <div style=&quot;position:absolute;left:${pct(d2Day)};top:-8px;width:1px;height:18px;background:#8B5CF6&quot;></div>
+      <div style=&quot;position:absolute;left:${pct(r.stockoutDays)};top:-3px;width:8px;height:8px;border-radius:50%;background:#888780;transform:translateX(-4px)&quot;></div>
+      <div style=&quot;position:absolute;left:${pct(r.orderByDays)};top:-5px;width:12px;height:12px;border-radius:50%;background:${status};border:2px solid #fff;transform:translateX(-6px)&quot;></div>
+    </div>`;
+  container.appendChild(row);
+});
+const axis = document.getElementById('axis');
+const labels = [0, Math.round(maxDays/3), Math.round(maxDays*2/3), Math.round(maxDays)];
+labels.forEach(d => {
+  const dt = new Date(TODAY.getTime() + d*86400000);
+  const span = document.createElement('span');
+  span.textContent = dt.toLocaleDateString('en-US', {month:'short', year:'numeric'});
+  axis.appendChild(span);
+});
 </script>
 </body>
 </html>
+" style="width:100%;height:420px;border:none;"></iframe>
